@@ -1,0 +1,43 @@
+---
+- name: Build image and run script container
+  hosts: targets
+  become: yes
+  vars:
+    image_name: httpstat-task:latest
+    container_name: httpstat-task
+    project_root: /opt/telecom          # куда копируется репозиторий
+
+  tasks:
+    - name: Copy repo to target host
+      synchronize:
+        src: "{{ playbook_dir }}/.."
+        dest: "{{ project_root }}"
+      delegate_to: localhost
+
+    - name: Build docker image
+      community.docker.docker_image:
+        name: "{{ image_name }}"
+        build:
+          path: "{{ project_root }}/section2"
+        source: build
+
+    - name: Run container
+      community.docker.docker_container:
+        name: "{{ container_name }}"
+        image: "{{ image_name }}"
+        auto_remove: no
+        state: started
+
+    - name: Wait until container exits
+      community.docker.docker_container_info:
+        name: "{{ container_name }}"
+      register: info
+      until: info.container.State.Status == "exited"
+      retries: 10
+      delay: 3
+
+    - name: Show container logs
+      command: docker logs "{{ container_name }}"
+      register: logs
+
+    - debug: var=logs.stdout

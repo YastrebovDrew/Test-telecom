@@ -1,0 +1,14 @@
+---
+- name: Fail if logs contain ERROR
+  hosts: targets
+  become: yes
+  vars:
+    container_name: httpstat-task
+
+  tasks:
+    - name: Read logs
+      command: docker logs "{{ container_name }}"
+      register: out
+      failed_when: "'ERROR' in out.stdout"
+
+    - debug: var=out.stdout
